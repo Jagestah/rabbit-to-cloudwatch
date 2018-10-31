@@ -1,0 +1,82 @@
+version: 2.0
+
+jobs:
+  build:
+    docker:
+      - image: nuvi/deis-workflow-cli:v2.18.0
+    working_directory: /app
+    steps:
+      - checkout
+      - setup_remote_docker   # (2)
+          #docker_layer_caching: true # (3)
+      - run:
+          name: Build Docker Image and Push
+          command: |
+            BRANCH=`echo ${CIRCLE_BRANCH} | sed "s/\//-/g"`
+            CHECKSUM=`echo ${CIRCLE_SHA1} | cut -c 1-7`
+            docker build -t nuvi/rabbit-cloudwatch:$BRANCH-$CHECKSUM .
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            docker push nuvi/rabbit-cloudwatch:$BRANCH-$CHECKSUM
+
+  # legos:
+  #   docker:
+  #     - image: nuvi/deis-workflow-cli:v2.18.0
+  #   working_directory: /app
+  #   steps:
+  #     - run:
+  #         name: Login to Deis Legos
+  #         command: deis login https://deis.us-east-1.k8s.nuviapp.com --username $DEIS_PROD_USER --password $DEIS_PROD_PASSWORD
+  #     - run:
+  #         name: Deploy Docker Image to Legos
+  #         command: |
+  #           BRANCH=`echo ${CIRCLE_BRANCH} | sed "s/\//-/g"`
+  #           CHECKSUM=`echo ${CIRCLE_SHA1} | cut -c 1-7`
+  #           deis pull nuvi/puppeteer:$BRANCH-$CHECKSUM -a puppeteer
+  whiskey-stage:
+    docker:
+      - image: nuvi/deis-workflow-cli:v2.18.0
+    working_directory: /app
+    steps:
+      - run:
+          name: Login to Deis Whiskey
+          command: deis login https://deis.whiskey.deis.nuviapp.com --username $DEIS_WHISKEY_USER --password $DEIS_WHISKEY_PASSWORD
+      - run:
+          name: Deploy Docker Image to Whiskey
+          command: |
+            BRANCH=`echo ${CIRCLE_BRANCH} | sed "s/\//-/g"`
+            CHECKSUM=`echo ${CIRCLE_SHA1} | cut -c 1-7`
+            deis pull nuvi/rabbit-cloudwatch:$BRANCH-$CHECKSUM -a rabbit-cloudwatch-stage
+  whiskey-prod:
+    docker:
+      - image: nuvi/deis-workflow-cli:v2.18.0
+    working_directory: /app
+    steps:
+      - run:
+          name: Login to Deis Whiskey
+          command: deis login https://deis.whiskey.deis.nuviapp.com --username $DEIS_WHISKEY_USER --password $DEIS_WHISKEY_PASSWORD
+      - run:
+          name: Deploy Docker Image to Whiskey
+          command: |
+            BRANCH=`echo ${CIRCLE_BRANCH} | sed "s/\//-/g"`
+            CHECKSUM=`echo ${CIRCLE_SHA1} | cut -c 1-7`
+            deis pull nuvi/rabbit-cloudwatch:$BRANCH-$CHECKSUM -a rabbit-cloudwatch-prod
+
+workflows:
+  version: 2
+  deis_deploy:
+    jobs:
+      - build
+      - whiskey-stage:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
+      - whiskey-prod:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
