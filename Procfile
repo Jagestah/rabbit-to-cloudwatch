@@ -1,1 +1,1 @@
-puppeteer: puppeteer
+cmd: python3 app.py

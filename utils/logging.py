@@ -1,9 +1,9 @@
 import logging
 
-logger = logging.getLogger('monitor-rabbitmq')
+logger = logging.getLogger('rabbit-cloudwatch')
 logger.setLevel(logging.INFO)
 
-fh = logging.FileHandler('monitor-rabbitmq.log')
+fh = logging.FileHandler('rabbit-cloudwatch.log')
 sh = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter)
